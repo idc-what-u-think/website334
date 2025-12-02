@@ -50,7 +50,7 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href="mailto:support@quantumx.bot" className="hover:text-foreground transition-colors">
+                <a href="mailto:firekid846official@gmail.com" className="hover:text-foreground transition-colors">
                   Email Support
                 </a>
               </li>
