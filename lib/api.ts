@@ -1,5 +1,3 @@
-// API Client for Cloudflare Workers integration
-
 interface APIResponse<T = any> {
   success: boolean
   data?: T
@@ -15,24 +13,41 @@ export class APIClient {
     this.apiKey = process.env.API_KEY || ""
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}, token?: string): Promise<APIResponse<T>> {
+  private async request<T>(
+    endpoint: string, 
+    options: RequestInit = {}, 
+    token?: string
+  ): Promise<APIResponse<T>> {
     try {
       const headers: HeadersInit = {
         "Content-Type": "application/json",
-        "x-api-key": this.apiKey,
-        ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       }
 
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+
+      if (this.apiKey && !token) {
+        headers["X-API-Key"] = this.apiKey
+      }
+
+      const url = `${this.baseURL}${endpoint}`
+      console.log('API Request:', url)
+
+      const response = await fetch(url, {
         ...options,
         headers,
       })
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
       const data = await response.json()
       return data
     } catch (error) {
-      console.error("[v0] API request failed:", error)
+      console.error("API request failed:", error)
       return {
         success: false,
         error: error instanceof Error ? error.message : "Request failed",
@@ -40,7 +55,6 @@ export class APIClient {
     }
   }
 
-  // Auth APIs
   async googleAuth(code: string) {
     return this.request<{ token: string; user: any }>("/api/auth/google", {
       method: "POST",
@@ -56,16 +70,19 @@ export class APIClient {
     return this.request(
       "/api/users/username",
       {
-        method: "PUT",
+        method: "POST",
         body: JSON.stringify({ username }),
       },
-      token,
+      token
     )
   }
 
-  // Chat APIs
   async getChatMessages(token: string, limit = 50, offset = 0) {
-    return this.request(`/api/chat/messages?limit=${limit}&offset=${offset}`, {}, token)
+    return this.request(
+      `/api/chat/messages?limit=${limit}&offset=${offset}`, 
+      {}, 
+      token
+    )
   }
 
   async sendChatMessage(token: string, message: string) {
@@ -75,16 +92,18 @@ export class APIClient {
         method: "POST",
         body: JSON.stringify({ message }),
       },
-      token,
+      token
     )
   }
 
-  // Public APIs
   async getBotStats() {
-    return this.request<{ totalServers: number; totalUsers: number; totalCommands: number }>("/api/bot/stats")
+    return this.request<{ 
+      totalServers: number
+      totalUsers: number
+      totalCommands: number 
+    }>("/api/bot/stats")
   }
 
-  // Admin APIs
   async adminLogin(username: string, password: string) {
     return this.request<{ token: string }>("/api/admin/login", {
       method: "POST",
@@ -97,11 +116,21 @@ export class APIClient {
   }
 
   async getServers(adminToken: string, limit = 50, offset = 0, search = "") {
-    return this.request(`/api/admin/servers?limit=${limit}&offset=${offset}&search=${search}`, {}, adminToken)
+    const query = new URLSearchParams({ 
+      limit: limit.toString(), 
+      offset: offset.toString(),
+      ...(search && { search })
+    })
+    return this.request(`/api/admin/servers?${query}`, {}, adminToken)
   }
 
   async getUsers(adminToken: string, limit = 50, offset = 0, search = "") {
-    return this.request(`/api/admin/users?limit=${limit}&offset=${offset}&search=${search}`, {}, adminToken)
+    const query = new URLSearchParams({ 
+      limit: limit.toString(), 
+      offset: offset.toString(),
+      ...(search && { search })
+    })
+    return this.request(`/api/admin/users?${query}`, {}, adminToken)
   }
 
   async blacklistServer(adminToken: string, serverId: string, reason: string) {
@@ -111,7 +140,7 @@ export class APIClient {
         method: "POST",
         body: JSON.stringify({ serverId, reason }),
       },
-      adminToken,
+      adminToken
     )
   }
 
@@ -122,7 +151,7 @@ export class APIClient {
         method: "POST",
         body: JSON.stringify({ userId, reason }),
       },
-      adminToken,
+      adminToken
     )
   }
 
@@ -133,7 +162,7 @@ export class APIClient {
         method: "POST",
         body: JSON.stringify(filters || {}),
       },
-      adminToken,
+      adminToken
     )
   }
 
@@ -142,7 +171,11 @@ export class APIClient {
   }
 
   async getAnalytics(adminToken: string, timeRange = "7d") {
-    return this.request(`/api/admin/analytics?range=${timeRange}`, {}, adminToken)
+    return this.request(
+      `/api/admin/analytics?range=${timeRange}`, 
+      {}, 
+      adminToken
+    )
   }
 }
 
