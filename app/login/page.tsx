@@ -18,7 +18,7 @@ export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
   const [adminModalOpen, setAdminModalOpen] = useState(false)
-  const [adminForm, setAdminForm] = useState({ username: "", password: "" })
+  const [adminForm, setAdminForm] = useState({ username: "Firekid", password: "ahmed@ibmk" })
   const [isLoading, setIsLoading] = useState(false)
 
   const handleGoogleLogin = () => {
