@@ -1,14 +1,13 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
@@ -16,18 +15,44 @@ import Link from "next/link"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { login } = useAuth()
   const [adminModalOpen, setAdminModalOpen] = useState(false)
-  const [adminForm, setAdminForm] = useState({ username: "Firekid", password: "ahmed@ibmk" })
+  const [adminForm, setAdminForm] = useState({ username: "", password: "" })
   const [isLoading, setIsLoading] = useState(false)
+
+  // Show error from URL params
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (error === 'auth_failed') {
+      toast.error("Authentication failed. Please try again.")
+    } else if (error === 'access_denied') {
+      toast.error("Access denied. Please grant permissions.")
+    } else if (error === 'no_code') {
+      toast.error("No authorization code received.")
+    } else if (error === 'server_error') {
+      toast.error("Server error. Please try again later.")
+    }
+  }, [searchParams])
 
   const handleGoogleLogin = () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
     const redirectUri = process.env.NEXT_PUBLIC_REDIRECT_URI
+
+    console.log('Google OAuth Config:', {
+      clientId: clientId ? 'SET' : 'MISSING',
+      redirectUri: redirectUri ? redirectUri : 'MISSING'
+    })
+
+    if (!clientId || !redirectUri) {
+      toast.error("OAuth configuration is missing. Please contact support.")
+      return
+    }
+
     const scope = "openid profile email"
     const responseType = "code"
 
-    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=${responseType}&scope=${scope}&access_type=offline&prompt=consent`
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=${responseType}&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`
 
     window.location.href = googleAuthUrl
   }
@@ -37,7 +62,12 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
+      console.log('Attempting admin login...')
+      console.log('API URL:', process.env.NEXT_PUBLIC_API_URL || 'NOT SET')
+      
       const response = await api.adminLogin(adminForm.username, adminForm.password)
+
+      console.log('Admin login response:', response)
 
       if (response.success && response.data) {
         localStorage.setItem("quantumx_admin_token", response.data.token)
@@ -47,7 +77,8 @@ export default function LoginPage() {
         toast.error(response.error || "Invalid credentials")
       }
     } catch (error) {
-      toast.error("Login failed. Please try again.")
+      console.error('Admin login error:', error)
+      toast.error("Login failed. Please check your connection and try again.")
     } finally {
       setIsLoading(false)
     }
@@ -146,6 +177,7 @@ export default function LoginPage() {
                 id="username"
                 value={adminForm.username}
                 onChange={(e) => setAdminForm({ ...adminForm, username: e.target.value })}
+                placeholder="Enter admin username"
                 required
               />
             </div>
@@ -157,6 +189,7 @@ export default function LoginPage() {
                 type="password"
                 value={adminForm.password}
                 onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                placeholder="Enter admin password"
                 required
               />
             </div>
